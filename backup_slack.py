@@ -77,10 +77,10 @@ def download_public_channels(slack, outdir):
     is logged in.
     """
     for channel in slack.channels():
-        if channel['is_member']:
-            history = slack.channel_history(channel=channel)
-            path = os.path.join(outdir, '%s.json' % channel['name'])
-            download_history(channel_info=channel, history=history, path=path)
+        print('  Saving %s' % channel['name'])
+        history = slack.channel_history(channel=channel)
+        path = os.path.join(outdir, '%s.json' % channel['name'])
+        download_history(channel_info=channel, history=history, path=path)
 
 
 def download_usernames(slack, path):
@@ -95,25 +95,6 @@ def download_usernames(slack, path):
     json_str = json.dumps(usernames, indent=2, sort_keys=True)
     with open(path, 'w') as outfile:
         outfile.write(json_str)
-
-
-def download_dm_threads(slack, outdir):
-    """Download the message history for this user's direct message threads."""
-    for thread in slack.dm_threads():
-        history = slack.dm_thread_history(thread=thread)
-        path = os.path.join(outdir, '%s.json' % thread['username'])
-        download_history(channel_info=thread, history=history, path=path)
-
-
-def download_private_channels(slack, outdir):
-    """Download the message history for the private channels where this user
-    is logged in.
-    """
-    for thread in slack.private_channels():
-        history = slack.private_channel_history(channel=thread)
-        path = os.path.join(outdir, '%s.json' % thread['name'])
-        download_history(channel_info=thread, history=history, path=path)
-
 
 class AuthenticationError(Exception):
     pass
@@ -242,14 +223,6 @@ def main():
     public_channels = os.path.join(args.outdir, PUBLIC_CHANNELS)
     print('Saving public channels to %s' % public_channels)
     download_public_channels(slack, outdir=public_channels)
-
-    private_channels = os.path.join(args.outdir, PRIVATE_CHANNELS)
-    print('Saving private channels to %s' % private_channels)
-    download_private_channels(slack, outdir=private_channels)
-
-    direct_messages = os.path.join(args.outdir, DIRECT_MESSAGES)
-    print('Saving direct messages to %s' % direct_messages)
-    download_dm_threads(slack, outdir=direct_messages)
 
 
 if __name__ == '__main__':
