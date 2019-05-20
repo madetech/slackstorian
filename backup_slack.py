@@ -9,18 +9,14 @@ import operator
 import os
 import sys
 import time
-
 import slacker
-
+import boto3
+from environs import Env
 
 __version__ = '1.0.0'
 
-
 USERNAMES = 'users.json'
-DIRECT_MESSAGES = 'direct_messages'
 PUBLIC_CHANNELS = 'channels'
-PRIVATE_CHANNELS = 'private_channels'
-
 
 def mkdir_p(path):
     """Create a directory if it does not already exist.
@@ -34,12 +30,10 @@ def mkdir_p(path):
         else:
             raise
 
-
 def slack_ts_to_datetime(ts):
     """Try to convert a 'ts' value from the Slack into a UTC datetime."""
     time_struct = time.localtime(float(ts))
     return datetime.datetime.fromtimestamp(time.mktime(time_struct))
-
 
 def download_history(channel_info, history, path):
     """Download the message history and save it to a JSON file."""
@@ -68,9 +62,11 @@ def download_history(channel_info, history, path):
         'messages': existing_messages,
     }
     json_str = json.dumps(data, indent=2, sort_keys=True)
+
     with open(path, 'w') as outfile:
         outfile.write(json_str)
 
+    save_to_s3(path, '%s.json' % channel_info['name'])
 
 def download_public_channels(slack, outdir):
     """Download the message history for the public channels where this user
@@ -81,7 +77,6 @@ def download_public_channels(slack, outdir):
         history = slack.channel_history(channel=channel)
         path = os.path.join(outdir, '%s.json' % channel['name'])
         download_history(channel_info=channel, history=history, path=path)
-
 
 def download_usernames(slack, path):
     """Download the username history from Slack."""
@@ -96,9 +91,10 @@ def download_usernames(slack, path):
     with open(path, 'w') as outfile:
         outfile.write(json_str)
 
+    save_to_s3(path, 'users.json')
+
 class AuthenticationError(Exception):
     pass
-
 
 class SlackHistory(object):
     """Wrapper around the Slack API.  This provides a few convenience
@@ -163,27 +159,6 @@ class SlackHistory(object):
         """Returns the message history for a channel."""
         return self._get_history(self.slack.channels, channel_id=channel['id'])
 
-    def private_channels(self):
-        """Returns a list of private channels."""
-        return self.slack.groups.list().body['groups']
-
-    def private_channel_history(self, channel):
-        """Returns the message history for a private channel."""
-        return self._get_history(self.slack.groups, channel_id=channel['id'])
-
-    def dm_threads(self):
-        """Returns a list of direct message threads."""
-        threads = []
-        for t in self.slack.im.list().body['ims']:
-            t['username'] = self.usernames[t['user']]
-            threads.append(t)
-        return threads
-
-    def dm_thread_history(self, thread):
-        """Returns the message history for a direct message thread."""
-        return self._get_history(self.slack.im, channel_id=thread['id'])
-
-
 def parse_args(prog, version):
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -198,19 +173,35 @@ def parse_args(prog, version):
     parser.add_argument(
         '--version', action='version', version='%(prog)s ' + version)
     parser.add_argument(
-        '--outdir', help='output directory', default='.')
-    parser.add_argument(
-        '--token', required=True,
-        help='Slack API token; obtain from https://api.slack.com/web')
+        '--outdir', help='output directory', default='./backup')
+    # parser.add_argument(
+    #     '--token', required=True,
+    #     help='Slack API token; obtain from https://api.slack.com/web')
 
     return parser.parse_args()
 
+def save_to_s3(path, filename):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=env('aws_access_key_id'),
+        aws_secret_access_key=env('aws_secret_access_key')
+    )
+
+    with open(path, "rb") as f:
+        s3.upload_fileobj(f, env('bucket_name'), filename)
+
+    print('Uploaded %s' % filename)
+
+def env(key):
+    enviroment = Env()
+    enviroment.read_env()
+    return enviroment(key)
 
 def main():
     args = parse_args(prog=os.path.basename(sys.argv[0]), version=__version__)
 
     try:
-        slack = SlackHistory(token=args.token)
+        slack = SlackHistory(token=env('slack_token'))
     except AuthenticationError as err:
         sys.exit(err)
 
@@ -224,6 +215,22 @@ def main():
     print('Saving public channels to %s' % public_channels)
     download_public_channels(slack, outdir=public_channels)
 
+    # slackarino = slacker.Slacker(env('slack_token'))
+    # slackarino.chat.post_message("elena-onboarding", "🐰🐰🐰")
+    # import pdb; pdb.set_trace()
 
+    print('bunnies %s' % '🐰🐰🐰')
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+
+
+
+
+#
