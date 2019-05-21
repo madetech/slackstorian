@@ -107,7 +107,9 @@ class SlackHistory(object):
         return self._get_history(self.slack.channels, channel_id=channel['id'])
 
     def post_to_channel(self, channel, message):
-        return self.slack.chat.post_message(channel, message)
+        return self.slack.chat.post_message(
+            channel=channel, text=message, username="Slackstorian"
+        )
 
 def parse_args(prog, version):
     """Parse command-line arguments."""
