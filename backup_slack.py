@@ -30,39 +30,12 @@ def mkdir_p(path):
         else:
             raise
 
-def slack_ts_to_datetime(ts):
-    """Try to convert a 'ts' value from the Slack into a UTC datetime."""
-    time_struct = time.localtime(float(ts))
-    return datetime.datetime.fromtimestamp(time.mktime(time_struct))
-
 def download_history(channel_info, history, path):
     """Download the message history and save it to a JSON file."""
+    path = os.path.join(path, '%s.json' % channel_info['name'])
+
     mkdir_p(os.path.dirname(path))
-    try:
-        with open(path) as infile:
-            existing_messages = json.load(infile)['messages']
-    except (IOError, OSError):
-        existing_messages = []
-
-    # TODO: For convenience, the messages yielded from `history` usually
-    # have more than just the raw Slack API response: in particular, they have
-    # a username and a date string.  If the username and/or timestamp format
-    # changes, we could inadvertently save duplicate messages.
-    for msg in history:
-        if msg in existing_messages:
-            break
-        existing_messages.append(msg)
-
-    # Newest messages appear at the top of the file
-    existing_messages = sorted(existing_messages,
-                               key=operator.itemgetter('ts'),
-                               reverse=True)
-    data = {
-        'channel': channel_info,
-        'messages': existing_messages,
-    }
-    json_str = json.dumps(data, indent=2, sort_keys=True)
-
+    json_str = json.dumps(history, indent=2, sort_keys=True)
     with open(path, 'w') as outfile:
         outfile.write(json_str)
 
@@ -77,14 +50,14 @@ def download_public_channels(slack, outdir):
     channels = slack.channels()
     json_str = json.dumps(channels, indent=2)
 
-    with open('%s.json' % outdir, 'w') as outfile:
+    with open('%s/channels.json' % outdir, 'w') as outfile:
         outfile.write(json_str)
 
-    # for channel in channels:
-    #     print('  Saving %s' % channel['name'])
-    #     history = slack.channel_history(channel=channel)
-    #     path = os.path.join(outdir, '%s.json' % channel['name'])
-    #     download_history(channel_info=channel, history=history, path=path)
+    for channel in channels:
+        print('  Saving %s' % channel['name'])
+        history = slack.channel_history(channel=channel)
+        path = os.path.join(outdir, channel['name'])
+        download_history(channel_info=channel, history=history, path=path)
 
 def download_usernames(slack, path):
     """Download the username history from Slack."""
@@ -115,36 +88,13 @@ class SlackHistory(object):
         self.usernames = self._fetch_user_mapping()
 
     def _get_history(self, channel_class, channel_id):
-        """Returns the message history for a channel, group or DM thread.
-        Newest messages are returned first.
-        """
-        # This wraps the `channels.history`, `groups.history` and `im.history`
-        # methods from the Slack API, which can return up to 1000 messages
-        # at once.
-        #
-        # Rather than spooling the entire history into a list before
-        # returning, we pass messages to the caller as soon as they're
-        # retrieved.  This means the caller can choose to exit early (and save
-        # API calls) if they turn out not to want older messages, for example,
-        # if they already have a copy of those locally.
+        """Returns the message history for a channel"""
         last_timestamp = None
-        while True:
-            response = channel_class.history(channel=channel_id,
-                                             latest=last_timestamp,
-                                             oldest=0,
-                                             count=1000)
-            for msg in sorted(response.body['messages'],
-                              key=operator.itemgetter('ts'),
-                              reverse=True):
-                last_timestamp = msg['ts']
-                msg['date'] = str(slack_ts_to_datetime(msg['ts']))
-                try:
-                    msg['username'] = self.usernames[msg['user']]
-                except KeyError:  # bot users
-                    pass
-                yield msg
-            if not response.body['has_more']:
-                return
+        response = channel_class.history(channel=channel_id,
+                                         latest=last_timestamp,
+                                         oldest=0,
+                                         count=1000)
+        return response.body['messages']
 
     def _fetch_user_mapping(self):
         """Gets all user information"""
@@ -189,7 +139,7 @@ def save_to_s3(path, filename):
     with open(path, "rb") as f:
         s3.upload_fileobj(f, env('bucket_name'), filename)
 
-    print('Uploaded %s' % filename)
+    print('  Uploaded %s' % filename)
 
 def env(key):
     enviroment = Env()
@@ -210,7 +160,7 @@ def main():
     print('Saving username list to %s' % usernames)
     download_usernames(slack, path=usernames)
 
-    public_channels = os.path.join(args.outdir, PUBLIC_CHANNELS)
+    public_channels = args.outdir
     print('Saving public channels to %s' % public_channels)
     download_public_channels(slack, outdir=public_channels)
 
