@@ -68,26 +68,27 @@ def download_history(channel_info, history, path):
 
     save_to_s3(path, '%s.json' % channel_info['name'])
 
+# import pdb; pdb.set_trace()
+
 def download_public_channels(slack, outdir):
     """Download the message history for the public channels where this user
     is logged in.
     """
-    for channel in slack.channels():
-        print('  Saving %s' % channel['name'])
-        history = slack.channel_history(channel=channel)
-        path = os.path.join(outdir, '%s.json' % channel['name'])
-        download_history(channel_info=channel, history=history, path=path)
+    channels = slack.channels()
+    json_str = json.dumps(channels, indent=2)
+
+    with open('%s.json' % outdir, 'w') as outfile:
+        outfile.write(json_str)
+
+    # for channel in channels:
+    #     print('  Saving %s' % channel['name'])
+    #     history = slack.channel_history(channel=channel)
+    #     path = os.path.join(outdir, '%s.json' % channel['name'])
+    #     download_history(channel_info=channel, history=history, path=path)
 
 def download_usernames(slack, path):
     """Download the username history from Slack."""
-    try:
-        with open(path) as infile:
-            usernames = json.load(infile)
-    except (IOError, OSError):
-        usernames = {}
-
-    usernames.update(slack.usernames)
-    json_str = json.dumps(usernames, indent=2, sort_keys=True)
+    json_str = json.dumps(slack.usernames, indent=2, sort_keys=True)
     with open(path, 'w') as outfile:
         outfile.write(json_str)
 
@@ -146,10 +147,8 @@ class SlackHistory(object):
                 return
 
     def _fetch_user_mapping(self):
-        """Gets a mapping of user IDs to usernames."""
-        return {
-            u['id']: u['name']
-            for u in self.slack.users.list().body['members']}
+        """Gets all user information"""
+        return self.slack.users.list().body['members']
 
     def channels(self):
         """Returns a list of public channels."""
@@ -217,7 +216,6 @@ def main():
 
     # slackarino = slacker.Slacker(env('slack_token'))
     # slackarino.chat.post_message("elena-onboarding", "🐰🐰🐰")
-    # import pdb; pdb.set_trace()
 
     print('bunnies %s' % '🐰🐰🐰')
 if __name__ == '__main__':
