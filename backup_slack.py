@@ -2,21 +2,18 @@
 # -*- encoding: utf-8
 
 import argparse
-import datetime
 import errno
 import json
-import operator
 import os
 import sys
-import time
 import slacker
 import boto3
 from environs import Env
-
+from tqdm import tqdm
 __version__ = '1.0.0'
 
 USERNAMES = 'users.json'
-PUBLIC_CHANNELS = 'channels'
+PUBLIC_CHANNELS = 'channels.json'
 
 def mkdir_p(path):
     """Create a directory if it does not already exist.
@@ -39,9 +36,8 @@ def download_history(channel_info, history, path):
     with open(path, 'w') as outfile:
         outfile.write(json_str)
 
-    save_to_s3(path, '%s.json' % channel_info['name'])
-
-# import pdb; pdb.set_trace()
+    aws_path = '%s/%s' % (channel_info['name'], os.path.basename(path))
+    save_to_s3(path, aws_path)
 
 def download_public_channels(slack, outdir):
     """Download the message history for the public channels where this user
@@ -49,12 +45,14 @@ def download_public_channels(slack, outdir):
     """
     channels = slack.channels()
     json_str = json.dumps(channels, indent=2)
+    path = os.path.join(outdir, PUBLIC_CHANNELS)
 
-    with open('%s/channels.json' % outdir, 'w') as outfile:
+    with open(path, 'w') as outfile:
         outfile.write(json_str)
 
-    for channel in channels:
-        print('  Saving %s' % channel['name'])
+    save_to_s3(path, PUBLIC_CHANNELS)
+
+    for channel in tqdm(channels):
         history = slack.channel_history(channel=channel)
         path = os.path.join(outdir, channel['name'])
         download_history(channel_info=channel, history=history, path=path)
@@ -65,7 +63,7 @@ def download_usernames(slack, path):
     with open(path, 'w') as outfile:
         outfile.write(json_str)
 
-    save_to_s3(path, 'users.json')
+    save_to_s3(path, USERNAMES)
 
 class AuthenticationError(Exception):
     pass
@@ -108,6 +106,9 @@ class SlackHistory(object):
         """Returns the message history for a channel."""
         return self._get_history(self.slack.channels, channel_id=channel['id'])
 
+    def post_to_channel(self, channel, message):
+        return self.slack.chat.post_message(channel, message)
+
 def parse_args(prog, version):
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -123,9 +124,6 @@ def parse_args(prog, version):
         '--version', action='version', version='%(prog)s ' + version)
     parser.add_argument(
         '--outdir', help='output directory', default='./backup')
-    # parser.add_argument(
-    #     '--token', required=True,
-    #     help='Slack API token; obtain from https://api.slack.com/web')
 
     return parser.parse_args()
 
@@ -138,8 +136,6 @@ def save_to_s3(path, filename):
 
     with open(path, "rb") as f:
         s3.upload_fileobj(f, env('bucket_name'), filename)
-
-    print('  Uploaded %s' % filename)
 
 def env(key):
     enviroment = Env()
@@ -164,21 +160,10 @@ def main():
     print('Saving public channels to %s' % public_channels)
     download_public_channels(slack, outdir=public_channels)
 
-    # slackarino = slacker.Slacker(env('slack_token'))
-    # slackarino.chat.post_message("elena-onboarding", "🐰🐰🐰")
+    slack.post_to_channel(
+        channel=env('notification_channel'),
+        message='All public channels have been backed up to %s' % env('bucket_name')
+    )
 
-    print('bunnies %s' % '🐰🐰🐰')
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-#
