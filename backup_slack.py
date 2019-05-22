@@ -10,34 +10,20 @@ import slacker
 import boto3
 from environs import Env
 from tqdm import tqdm
+import tempfile
 __version__ = '1.0.0'
 
 USERNAMES = 'users.json'
 PUBLIC_CHANNELS = 'channels.json'
 
-def mkdir_p(path):
-    """Create a directory if it does not already exist.
-    http://stackoverflow.com/a/600612/1558022
-    """
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
-
 def download_history(channel_info, history, path):
     """Download the message history and save it to a JSON file."""
     path = os.path.join(path, '%s.json' % channel_info['name'])
 
-    mkdir_p(os.path.dirname(path))
     json_str = json.dumps(history, indent=2, sort_keys=True)
-    with open(path, 'w') as outfile:
-        outfile.write(json_str)
 
     aws_path = '%s/%s' % (channel_info['name'], os.path.basename(path))
-    save_to_s3(path, aws_path)
+    save_to_s3(json_str, aws_path)
 
 def download_public_channels(slack, outdir):
     """Download the message history for the public channels where this user
@@ -45,12 +31,8 @@ def download_public_channels(slack, outdir):
     """
     channels = slack.channels()
     json_str = json.dumps(channels, indent=2)
-    path = os.path.join(outdir, PUBLIC_CHANNELS)
 
-    with open(path, 'w') as outfile:
-        outfile.write(json_str)
-
-    save_to_s3(path, PUBLIC_CHANNELS)
+    save_to_s3(json_str, PUBLIC_CHANNELS)
 
     for channel in tqdm(channels):
         history = slack.channel_history(channel=channel)
@@ -60,10 +42,8 @@ def download_public_channels(slack, outdir):
 def download_usernames(slack, path):
     """Download the username history from Slack."""
     json_str = json.dumps(slack.usernames, indent=2, sort_keys=True)
-    with open(path, 'w') as outfile:
-        outfile.write(json_str)
 
-    save_to_s3(path, USERNAMES)
+    save_to_s3(json_str, path)
 
 class AuthenticationError(Exception):
     pass
@@ -129,22 +109,29 @@ def parse_args(prog, version):
 
     return parser.parse_args()
 
-def save_to_s3(path, filename):
+def save_to_s3(file_body, filename):
     s3 = boto3.client(
         's3',
         aws_access_key_id=env('aws_access_key_id'),
         aws_secret_access_key=env('aws_secret_access_key')
     )
 
-    with open(path, "rb") as f:
-        s3.upload_fileobj(f, env('bucket_name'), filename)
+    tqdm.write(f' uploading {filename} to s3')
+    s3.put_object(
+        Body=file_body,
+        Bucket=env('bucket_name'),
+        Key=filename
+    )
+    tqdm.write(f'  done')
+
 
 def env(key):
     enviroment = Env()
     enviroment.read_env()
     return enviroment(key)
 
-def main():
+def main(*foo):
+
     args = parse_args(prog=os.path.basename(sys.argv[0]), version=__version__)
 
     try:
@@ -152,20 +139,18 @@ def main():
     except AuthenticationError as err:
         sys.exit(err)
 
-    mkdir_p(args.outdir)
-
     usernames = os.path.join(args.outdir, USERNAMES)
-    print('Saving username list to %s' % usernames)
+    tqdm.write(f'Saving username list to {usernames}')
     download_usernames(slack, path=usernames)
 
     public_channels = args.outdir
-    print('Saving public channels to %s' % public_channels)
+    tqdm.write('Saving public channels to %s' % public_channels)
     download_public_channels(slack, outdir=public_channels)
 
-    slack.post_to_channel(
-        channel=env('notification_channel'),
-        message='All public channels have been backed up to %s' % env('bucket_name')
-    )
+    # slack.post_to_channel(
+    #     channel=env('notification_channel'),
+    #     message='All public channels have been backed up to %s' % env('bucket_name')
+    # )
 
 if __name__ == '__main__':
     main()
