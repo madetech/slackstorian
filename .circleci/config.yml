@@ -51,7 +51,7 @@ jobs:
     docker:
       - image: circleci/python:3.7
     steps:
-      - build-release
+      - build-release:
       - deploy-lambda:
           function-name:    'slackstorian-production'
           function-handler: 'slackstorian.main'
