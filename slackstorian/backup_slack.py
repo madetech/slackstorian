@@ -10,10 +10,12 @@ import slacker
 import boto3
 from environs import Env
 from tqdm import tqdm
+
 __version__ = '1.0.0'
 
 USERNAMES = 'users.json'
 PUBLIC_CHANNELS = 'channels.json'
+
 
 def mkdir_p(path):
     """Create a directory if it does not already exist.
@@ -27,6 +29,7 @@ def mkdir_p(path):
         else:
             raise
 
+
 def download_history(channel_info, history, path):
     """Download the message history and save it to a JSON file."""
     path = os.path.join(path, '%s.json' % channel_info['name'])
@@ -38,6 +41,7 @@ def download_history(channel_info, history, path):
 
     aws_path = '%s/%s' % (channel_info['name'], os.path.basename(path))
     save_to_s3(path, aws_path)
+
 
 def download_public_channels(slack, outdir):
     """Download the message history for the public channels where this user
@@ -57,6 +61,7 @@ def download_public_channels(slack, outdir):
         path = os.path.join(outdir, channel['name'])
         download_history(channel_info=channel, history=history, path=path)
 
+
 def download_usernames(slack, path):
     """Download the username history from Slack."""
     json_str = json.dumps(slack.usernames, indent=2, sort_keys=True)
@@ -65,8 +70,10 @@ def download_usernames(slack, path):
 
     save_to_s3(path, USERNAMES)
 
+
 class AuthenticationError(Exception):
     pass
+
 
 class SlackHistory(object):
     """Wrapper around the Slack API.  This provides a few convenience
@@ -111,6 +118,7 @@ class SlackHistory(object):
             channel=channel, text=message, username="Slackstorian"
         )
 
+
 def parse_args(prog, version):
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -129,26 +137,29 @@ def parse_args(prog, version):
 
     return parser.parse_args()
 
+
 def save_to_s3(path, filename):
     s3 = boto3.client(
         's3',
-        aws_access_key_id=env('aws_access_key_id'),
-        aws_secret_access_key=env('aws_secret_access_key')
+        aws_access_key_id=get_env('aws_access_key_id'),
+        aws_secret_access_key=get_env('aws_secret_access_key')
     )
 
     with open(path, "rb") as f:
-        s3.upload_fileobj(f, env('bucket_name'), filename)
+        s3.upload_fileobj(f, get_env('bucket_name'), filename)
 
-def env(key):
+
+def get_env(key):
     enviroment = Env()
     enviroment.read_env()
     return enviroment(key)
+
 
 def main():
     args = parse_args(prog=os.path.basename(sys.argv[0]), version=__version__)
 
     try:
-        slack = SlackHistory(token=env('slack_token'))
+        slack = SlackHistory(token=get_env('slack_token'))
     except AuthenticationError as err:
         sys.exit(err)
 
@@ -163,9 +174,10 @@ def main():
     download_public_channels(slack, outdir=public_channels)
 
     slack.post_to_channel(
-        channel=env('notification_channel'),
-        message='All public channels have been backed up to %s' % env('bucket_name')
+        channel=get_env('notification_channel'),
+        message='All public channels have been backed up to %s' % get_env('bucket_name')
     )
+
 
 if __name__ == '__main__':
     main()
