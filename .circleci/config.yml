@@ -37,7 +37,7 @@ commands:
             pipenv run pip install -r requirements.txt --no-deps -t build
       - run:
           name: Create zip
-          command: zip build.zip ./build/**
+          command: zip build.zip ./build/**/*
 jobs:
   test:
     docker:
