@@ -4,11 +4,7 @@ orbs:
 
 commands:
   deploy-lambda:
-<<<<<<< HEAD
-    description: "Deploys a zip file"
-=======
     description: "Deploys a zip file to aws"
->>>>>>> 648916056b055bd65b7d502c63d64d598b7c8171
     parameters:
       function-name:
         type: string
