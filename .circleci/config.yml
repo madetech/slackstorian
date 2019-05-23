@@ -19,20 +19,28 @@ commands:
       - run:
           name: Deploy new lambda
           command: |
-            aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file "fileb://$CIRCLE_WORKING_DIRECTORY/slackstorian/slackstorian.zip" --query "LastModified"
+            aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file "fileb://$CIRCLE_WORKING_DIRECTORY/build/slackstorian.zip" --query "LastModified"
             aws lambda update-function-configuration --region $AWS_REGION --function-name "<< parameters.function-name >>" --handler "<< parameters.function-handler >>" --query "Handler"
   build-release-zip:
     description: "Makes a zip file from project"
     steps:
       - run:
+          name: Create directory
+          command: mkdir build
+      - run:
+          name: Package souce files
+          command: |
+            cp -r ./slackstorian ./build
+            cp lambda.py build
+      - run:
           name: Package dependencies
           command: |
             pipenv lock -r > requirements.txt
-            pipenv run pip install -r requirements.txt --no-deps -t slackstorian
+            pipenv run pip install -r requirements.txt --no-deps -t build
       - run:
           name: Create zip
           command: |
-            cd slackstorian
+            cd build
             zip -r slackstorian.zip *
 jobs:
   test:
@@ -50,7 +58,7 @@ jobs:
       - build-release-zip
       - deploy-lambda:
           function-name:    'arn:aws:lambda:eu-west-2:559789578064:function:slackstorian-production'
-          function-handler: '__init__.main'
+          function-handler: 'lambda.handler'
 workflows:
   ci:
     jobs:
