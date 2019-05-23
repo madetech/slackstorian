@@ -65,6 +65,7 @@ jobs:
           function-name:    'arn:aws:lambda:eu-west-2:559789578064:function:slackstorian-production'
           function-handler: 'lambda.handler'
 workflows:
+  version: 2
   ci:
     jobs:
       - test
