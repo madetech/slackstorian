@@ -4,8 +4,9 @@ import sys
 import boto3
 from environs import Env
 
-from slackstorian.backup_slack import run_backup
-from slackstorian.slack_client import SlackClient
+from .backup_slack import run_backup
+from .slack_client import SlackClient
+
 import argparse
 
 __version__ = '1.0.0'
