@@ -25,19 +25,15 @@ commands:
     description: "Makes a zip file from project"
     steps:
       - run:
-          name: Create directory
-          command: mkdir build
-      - run:
-          name: Copy souce package
-          command: cp -r ./slackstorian ./build
-      - run:
           name: Package dependencies
           command: |
             pipenv lock -r > requirements.txt
-            pipenv run pip install -r requirements.txt --no-deps -t build
+            pipenv run pip install -r requirements.txt --no-deps -t slackstorian
       - run:
           name: Create zip
-          command: zip build.zip ./build/**/*
+          command: |
+            cd slackstorian
+            zip -r slackstorian.zip *
 jobs:
   test:
     docker:
@@ -54,7 +50,7 @@ jobs:
       - build-release-zip
       - deploy-lambda:
           function-name:    'arn:aws:lambda:eu-west-2:559789578064:function:slackstorian-production'
-          function-handler: 'build.slackstorian.__init__.main'
+          function-handler: '__init__.main'
 workflows:
   ci:
     jobs:
