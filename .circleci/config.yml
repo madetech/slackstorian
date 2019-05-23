@@ -20,7 +20,7 @@ commands:
           name: Deploy new lambda
           command: |
             aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file "fileb://$CIRCLE_WORKING_DIRECTORY/build.zip" --query "LastModified"
-            aws lambda update-function-configuration --region $AWS_REGION --function-name "lunchRota" --handler "<< parameters.function-handler >>" --query "Handler"
+            aws lambda update-function-configuration --region $AWS_REGION --function-name "<< parameters.function-name >>" --handler "<< parameters.function-handler >>" --query "Handler"
   build-release-zip:
     description: "Makes a zip file from project"
     steps:
@@ -53,7 +53,7 @@ jobs:
       - checkout
       - build-release-zip
       - deploy-lambda:
-          function-name:    'slackstorian-production'
+          function-name:    'arn:aws:lambda:us-east-1:559789578064:function:slackstorian-production'
           function-handler: 'slackstorian.main'
 workflows:
   ci:
