@@ -5,7 +5,7 @@ Slack backup tool, that uploads the history public channels history to S3 and po
 ## How to backup:
 install [https://docs.pipenv.org/en/latest/#install-pipenv-today](pipenv) and dependancys
 ```bash
-pipenv install
+pipenv install --dev
 ```
 
 
@@ -21,7 +21,7 @@ notification_channel=CHANNEL_NAME
 
 Then run:
 ```
-pipenv run python backup_slack.py
+pipenv run python lambda.py
 ```
 By default the backups are saved in `./backup/` and uploaded into the defined bucket.
 

@@ -4,7 +4,11 @@ orbs:
 
 commands:
   deploy-lambda:
+<<<<<<< HEAD
     description: "Deploys a zip file"
+=======
+    description: "Deploys a zip file to aws"
+>>>>>>> 648916056b055bd65b7d502c63d64d598b7c8171
     parameters:
       function-name:
         type: string
@@ -19,17 +23,19 @@ commands:
       - run:
           name: Deploy new lambda
           command: |
-            aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file ./build.zip --query "LastModified"
-            aws lambda update-function-configuration --region $AWS_REGION --function-name "lunchRota" --handler "<< parameters.function-handler >>" --query "Handler"
+            aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file "fileb://$CIRCLE_WORKING_DIRECTORY/build/slackstorian.zip" --query "LastModified"
+            aws lambda update-function-configuration --region $AWS_REGION --function-name "<< parameters.function-name >>" --handler "<< parameters.function-handler >>" --query "Handler"
   build-release-zip:
-    description: "Makes a zip file from project"
+    description: "Makes a zip file from project with dependencies included"
     steps:
       - run:
           name: Create directory
           command: mkdir build
       - run:
-          name: Copy souce package
-          command: cp -r ./slackstorian ./build
+          name: Package souce files
+          command: |
+            cp -r ./slackstorian ./build
+            cp lambda.py build
       - run:
           name: Package dependencies
           command: |
@@ -37,15 +43,28 @@ commands:
             pipenv run pip install -r requirements.txt --no-deps -t build
       - run:
           name: Create zip
-          command: zip build.zip ./build/**
+          command: |
+            cd build
+            zip -r slackstorian.zip *
 jobs:
   test:
     docker:
       - image: circleci/python:3.7
     steps:
       - checkout
+      - restore_cache:
+          key: deps-2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
       - run: pipenv sync --dev
-      - run: pipenv run python -m pytest --cov=slackstorian --duration=5
+      - run: mkdir test-reports
+      - run: pipenv run python -m pytest --cov=slackstorian --duration=5 --junitxml=test-reports/junit.xml
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
+      - save_cache:
+          key: deps-2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          paths:
+            - ~/.local/share/virtualenvs
   deploy-production:
     docker:
       - image: circleci/python:3.7
@@ -53,13 +72,16 @@ jobs:
       - checkout
       - build-release-zip
       - deploy-lambda:
-          function-name:    'slackstorian-production'
-          function-handler: 'slackstorian.main'
+          function-name:    'arn:aws:lambda:eu-west-2:559789578064:function:slackstorian-production'
+          function-handler: 'lambda.handler'
 workflows:
+  version: 2
   ci:
     jobs:
       - test
       - deploy-production:
           requires:
             - test
-
+          filters:
+            branches:
+              only: master
