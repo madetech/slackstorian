@@ -1,7 +1,7 @@
 import pytest
 import uuid
 
-from slackstorian.backup_slack import get_env
+from slackstorian import get_env
 
 
 def test_eng_throws_an_exception_if_not_set():

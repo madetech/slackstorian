@@ -1,20 +1,68 @@
-version: 2
+version: 2.1
+orbs:
+  aws-cli: circleci/aws-cli@0.1.13
+
+commands:
+  deploy-lambda:
+    description: "Deploys a zip file"
+    parameters:
+      function-name:
+        type: string
+      function-handler:
+        type: string
+    steps:
+      - aws-cli/install
+      - aws-cli/configure:
+          aws-access-key-id: AWS_ID_KEY
+          aws-secret-access-key: AWS_SECRET_KEY
+          aws-region: AWS_REGION
+      - run:
+          name: Deploy new lambda
+          command: |
+            aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file "fileb://$CIRCLE_WORKING_DIRECTORY/build.zip" --query "LastModified"
+            aws lambda update-function-configuration --region $AWS_REGION --function-name "lunchRota" --handler "<< parameters.function-handler >>" --query "Handler"
+  build-release-zip:
+    description: "Makes a zip file from project"
+    steps:
+      - run:
+          name: Create directory
+          command: mkdir build
+      - run:
+          name: Copy souce package
+          command: cp -r ./slackstorian ./build
+      - run:
+          name: Package dependencies
+          command: |
+            pipenv lock -r > requirements.txt
+            pipenv run pip install -r requirements.txt --no-deps -t build
+      - run:
+          name: Create zip
+          command: zip build.zip ./build/**
 jobs:
   test:
     docker:
       - image: circleci/python:3.7
     steps:
       - checkout
+      - run: pipenv sync --dev
       - run: pipenv run python -m pytest --cov=slackstorian --duration=5
-  deploy:
+  deploy-production:
     docker:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: echo "test deploy"
+      - build-release-zip
+      - deploy-lambda:
+          function-name:    'slackstorian-production'
+          function-handler: 'slackstorian.main'
 workflows:
-  version: 2
-  build_and_test:
+  ci:
     jobs:
-      - build
-      - deploy
+      - test
+      - deploy-production:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+
