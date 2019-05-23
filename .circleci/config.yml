@@ -44,7 +44,7 @@ jobs:
       - image: circleci/python:3.7
     steps:
       - checkout
-      - run: pipenv install --dev
+      - run: pipenv sync --dev
       - run: pipenv run python -m pytest --cov=slackstorian --duration=5
   deploy-production:
     docker:
