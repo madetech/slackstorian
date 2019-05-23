@@ -63,6 +63,7 @@ jobs:
             - ".venv"
             - "/usr/local/bin"
             - "/usr/local/lib/python3.6/site-packages"
+            - ~/.local/share/virtualenvs
   deploy-production:
     docker:
       - image: circleci/python:3.7
