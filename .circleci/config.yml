@@ -49,7 +49,12 @@ jobs:
     steps:
       - checkout
       - run: pipenv sync --dev
-      - run: pipenv run python -m pytest --cov=slackstorian --duration=5
+      - run: mkdir test-reports
+      - run: pipenv run python -m pytest --cov=slackstorian --duration=5 --junitxml=test-reports/junit.xml
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
   deploy-production:
     docker:
       - image: circleci/python:3.7
