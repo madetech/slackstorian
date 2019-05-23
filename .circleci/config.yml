@@ -4,7 +4,7 @@ orbs:
 
 commands:
   deploy-lambda:
-    description: "Deploys a zip file"
+    description: "Deploys a zip file to aws"
     parameters:
       function-name:
         type: string
@@ -22,7 +22,7 @@ commands:
             aws lambda update-function-code --region $AWS_REGION --function-name "<< parameters.function-name >>" --zip-file "fileb://$CIRCLE_WORKING_DIRECTORY/build/slackstorian.zip" --query "LastModified"
             aws lambda update-function-configuration --region $AWS_REGION --function-name "<< parameters.function-name >>" --handler "<< parameters.function-handler >>" --query "Handler"
   build-release-zip:
-    description: "Makes a zip file from project"
+    description: "Makes a zip file from project with dependencies included"
     steps:
       - run:
           name: Create directory
