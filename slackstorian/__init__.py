@@ -23,12 +23,10 @@ def main(*foo):
         aws_secret_access_key=get_env('aws_secret_access_key')
     )
 
-    run_backup(slack, s3_client, get_env('bucket_name'))
+    slack_channel_name = get_env('notification_channel')
 
-    slack.post_to_channel(
-        channel=get_env('notification_channel'),
-        message='All public channels have been backed up to %s' % get_env('bucket_name')
-    )
+    run_backup(slack, slack_channel_name, s3_client, get_env('bucket_name'))
+
 
 
 def parse_args(prog, version):
