@@ -7,6 +7,8 @@ verify_ssl = true
 pytest = "*"
 pylint = "*"
 responses = "*"
+pytest-mock = "*"
+pytest-cov = "*"
 
 [packages]
 slacker = "*"
