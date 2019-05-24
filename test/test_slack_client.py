@@ -1,7 +1,8 @@
+import json
+
 import pytest
 import time
 from slackstorian.slack_client import SlackClient, AuthenticationError
-
 
 def test_client_throws_an_exception_if_not_set():
     with pytest.raises(AuthenticationError):
@@ -93,8 +94,8 @@ def test_can_download_channels_history(mocked_response):
   }
 ]'''
 
-def test_can_download_all_channels_history(mocked_response):
 
+def test_can_download_all_channels_history(mocked_response):
     first_response = generate_list_of_messages(1000)
     second_response = generate_list_of_messages(2)
 
@@ -119,12 +120,10 @@ def test_can_download_all_channels_history(mocked_response):
         },
         status=200
     )
-    # import pdb; pdb.set_trace()
 
     client = SlackClient('test fake token')
 
-    assert client.channel_history({"id": "fake_channel"}) == first_response + second_response
-
+    assert json.loads(client.channel_history({"id": "fake_channel"})) == first_response + second_response
 
 def test_can_post_to_channel(mocked_response):
     mocked_response.add(mocked_response.GET, 'https://slack.com/api/auth.test?token=test+fake+token', json={"ok": True},
@@ -149,11 +148,11 @@ def generate_list_of_messages(message_count):
 
 def generate_message(i):
     return {
-        "client_msg_id": "8574f8fa-0f79-4358-97b4-5bd3737bae37",
+        "client_msg_id": "8574f8fa-0f79-4358-97b4-5bd3737bae37",  # todo randomise this to ensure tests are valid
         "parent_user_id": "UCFS7A4HF",
         "text": "This is a message",
         "thread_ts": "1558526777.096800",
-        "ts": str(time.time()-i),
+        "ts": str(time.time() - i),
         "type": "message",
         "user": "UAM2578HM"
     }
