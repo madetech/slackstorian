@@ -31,7 +31,6 @@ def download_and_save_channels(slack, s3_client, bucket_name, channels_list):
     for channel in tqdm(channels_list):
         history = slack.channel_history(channel=channel)
         save_channel(s3_client, bucket_name, channel, history)
-        time.sleep(5) # dirty fix to get around rate limits ._.
 
 
 def run_backup(slack, slack_channel_name, s3_client, s3_bucket_name):

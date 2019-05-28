@@ -1,6 +1,6 @@
 import json
 import slacker
-
+import time
 
 class AuthenticationError(Exception):
     pass
@@ -37,25 +37,43 @@ class SlackClient(object):
         """Returns the message history for a channel"""
         messages_array = []
 
-        response = channel_class.history(
-            channel=channel_id,
-            latest=None,
-            oldest=0,
-            count=1000
-        )
+        try:
+            response = channel_class.history(
+                channel=channel_id,
+                latest=None,
+                oldest=0,
+                count=1000
+            )
+        except:
+            time.sleep(5)
+            response = channel_class.history(
+                channel=channel_id,
+                latest=None,
+                oldest=0,
+                count=1000
+            )
 
         messages_array = response.body['messages']
 
         while len(response.body['messages']) == 1000:
 
             oldest_timestamp = messages_array[-1]['ts']
-
-            response = channel_class.history(
-                channel=channel_id,
-                inclusive=False,
-                oldest=oldest_timestamp,
-                count=1000
-            )
+            try:
+                response = channel_class.history(
+                    channel=channel_id,
+                    inclusive=False,
+                    oldest=oldest_timestamp,
+                    count=1000
+                )
+            except:
+                print('retrying....')
+                time.sleep(5)
+                response = channel_class.history(
+                    channel=channel_id,
+                    inclusive=False,
+                    oldest=oldest_timestamp,
+                    count=1000
+                )
 
             messages_array.extend(response.body['messages'])
 
