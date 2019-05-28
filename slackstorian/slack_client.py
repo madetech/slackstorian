@@ -25,7 +25,7 @@ class SlackClient(object):
     """
 
     def __init__(self, token):
-        self.slack = slacker.Slacker(token=token)
+        self.slack = slacker.Slacker(token=token)  # todo set retry limit here
 
         # Check the token is valid
         try:
@@ -35,12 +35,31 @@ class SlackClient(object):
 
     def _get_history(self, channel_class, channel_id):
         """Returns the message history for a channel"""
-        last_timestamp = None
-        response = channel_class.history(channel=channel_id,
-                                         latest=last_timestamp,
-                                         oldest=0,
-                                         count=1000)
-        return response.body['messages']
+        messages_array = []
+
+        response = channel_class.history(
+            channel=channel_id,
+            latest=None,
+            oldest=0,
+            count=1000
+        )
+
+        messages_array = response.body['messages']
+
+        while len(response.body['messages']) == 1000:
+
+            oldest_timestamp = messages_array[-1]['ts']
+
+            response = channel_class.history(
+                channel=channel_id,
+                inclusive=False,
+                oldest=oldest_timestamp,
+                count=1000
+            )
+
+            messages_array.extend(response.body['messages'])
+
+        return messages_array
 
     def user_data_json(self):
         """Gets all user data as json"""
@@ -59,4 +78,3 @@ class SlackClient(object):
         return self.slack.chat.post_message(
             channel=channel, text=message, username="Slackstorian"
         )
-
