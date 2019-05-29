@@ -38,20 +38,10 @@ class SlackClient(object):
         messages_array = []
 
         try:
-            response = channel_class.history(
-                channel=channel_id,
-                latest=None,
-                oldest=0,
-                count=1000
-            )
+            response = self.__get_channel_history(channel_class, channel_id, 0)
         except:
             time.sleep(5)
-            response = channel_class.history(
-                channel=channel_id,
-                latest=None,
-                oldest=0,
-                count=1000
-            )
+            response = self.__get_channel_history(channel_class, channel_id, 0)
 
         messages_array = response.body['messages']
 
@@ -59,25 +49,22 @@ class SlackClient(object):
 
             oldest_timestamp = messages_array[-1]['ts']
             try:
-                response = channel_class.history(
-                    channel=channel_id,
-                    inclusive=False,
-                    oldest=oldest_timestamp,
-                    count=1000
-                )
+                response = self.__get_channel_history(channel_class, channel_id, oldest_timestamp)
             except:
-                print('retrying....')
                 time.sleep(5)
-                response = channel_class.history(
-                    channel=channel_id,
-                    inclusive=False,
-                    oldest=oldest_timestamp,
-                    count=1000
-                )
+                response = self.__get_channel_history(channel_class, channel_id, oldest_timestamp)
 
             messages_array.extend(response.body['messages'])
 
         return messages_array
+
+    def __get_channel_history(self, channel_class, channel_id, oldest_timestamp):
+        return channel_class.history(
+            channel=channel_id,
+            inclusive=False,
+            oldest=oldest_timestamp,
+            count=1000
+        )
 
     def user_data_json(self):
         """Gets all user data as json"""
