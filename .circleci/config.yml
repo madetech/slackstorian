@@ -35,8 +35,8 @@ commands:
       - run:
           name: Package dependencies
           command: |
-            pipenv lock -r > requirements.txt
-            pipenv run pip install -r requirements.txt --no-deps -t build
+            poetry export -f requirements.txt -o requirements.txt
+            poetry run pip install -r requirements.txt --no-deps -t build
       - run:
           name: Create zip
           command: |
@@ -49,18 +49,18 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-      - run: pipenv sync --dev
+          key: deps-3-{{ .Branch }}-{{ checksum "poetry.lock" }}
+      - run: poetry install
       - run: mkdir test-reports
-      - run: pipenv run python -m pytest --cov=slackstorian --duration=5 --junitxml=test-reports/junit.xml
+      - run: poetry run python -m pytest --cov=slackstorian --junitxml=test-reports/junit.xml
       - store_test_results:
           path: test-reports
       - store_artifacts:
           path: test-reports
       - save_cache:
-          key: deps-2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: deps-3-{{ .Branch }}-{{ checksum "poetry.lock" }}
           paths:
-            - ~/.local/share/virtualenvs
+            - ~/.cache/pypoetry
   deploy-production:
     docker:
       - image: circleci/python:3.7
